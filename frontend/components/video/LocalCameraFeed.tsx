@@ -367,7 +367,7 @@ export const LocalCameraFeed: React.FC<LocalCameraFeedProps> = ({ className }) =
         className
       )}
     >
-      <div className="relative z-10 bg-[#0F172A]/90 border-b border-[#38BDF8]/40 p-3 flex items-center justify-between text-[11px] pointer-events-none text-white">
+      <div className="absolute top-0 inset-x-0 z-10 bg-[#0F172A]/90 border-b border-[#38BDF8]/40 p-3 flex items-center justify-between text-[11px] pointer-events-none text-white">
         <div className="flex items-center gap-2 min-w-0">
           <span className={cn("w-2 h-2 rounded-full shrink-0", isLive ? "bg-[#0284C7] animate-pulse" : "bg-[#94A3B8]")} />
           <span className="font-bold tracking-widest text-white truncate uppercase">
