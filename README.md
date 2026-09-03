@@ -120,16 +120,6 @@ The `/live-feed` page has a `VIDEO SOURCE` control with three options:
 
 Raw `rtsp://`/`rtsps://` addresses cannot be decoded by a normal browser video element. Put an HLS/WebRTC relay such as MediaMTX or go2rtc in front of the camera, then enter the relay's HTTP(S) URL in the live-feed control.
 
-The `/login` page uses rank-based console access. The local demo accounts are:
-
-- `ADMIN-001` / `BL-ADMIN-2026`: administrator access, including guard provisioning.
-- `SSB-2041` / `BL-COMMAND-2041`: command access.
-- `SSB-2098` / `BL-FIELD-2098`: field access.
-
-After signing in as `ADMIN-001`, open `CAMERA SETTINGS` from the sidebar. The `GUARD REGISTRY // CREDENTIAL PROVISIONING` form creates a guard profile and a hashed login credential in the backend's local state. The new operator ID and passcode can then be used at `/login`; password hashes are never returned in API snapshots. Access is enforced by a signed backend token for guard creation, while the browser route guard controls which console pages each rank can open.
-
-The Border Map uses a custom SVG renderer rather than Leaflet or Mapbox GL. Its `SATELLITE VIEW` toggle places the public Esri World Imagery export underneath the existing camera, alert, guard, sector, and tripwire overlays. This is a periodic/static imagery basemap for geographic context, not a live satellite or surveillance video feed. Esri imagery attribution is shown in the map UI. No API key is required for this demo endpoint.
-
 The live pipeline supports:
 
 - `AI_FACE_FRAME_INTERVAL=3`: run face detection every third pipeline frame.
@@ -172,6 +162,6 @@ The current lockfile builds successfully, but `npm audit` reports a high PostCSS
 
 ## API and frontend routes
 
-The main backend routes are `/api/health`, `/api/auth/login`, `/api/bootstrap`, `/api/guards`, `/api/alerts`, `/api/activity`, `/api/guards/<id>`, `/api/cameras/<id>`, `/api/shifts/<id>`, `/api/sync`, `/api/reset`, and `/api/inference/frame`.
+The main backend routes are `/api/health`, `/api/bootstrap`, `/api/alerts`, `/api/activity`, `/api/guards/<id>`, `/api/cameras/<id>`, `/api/shifts/<id>`, `/api/sync`, `/api/reset`, and `/api/inference/frame`.
 
 The frontend pages are `/`, `/login`, `/dashboard`, `/live-feed`, `/alerts`, `/map`, `/guard-duty`, `/camera-management`, and `/admin`. The legacy `/logistics`, `/intelligence`, and guard-duty detail routes are present redirect pages, so navigation does not point at missing pages.

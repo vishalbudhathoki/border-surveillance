@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -13,16 +13,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIBVAPStore } from "@/lib/store/useIBVAPStore";
-import { AuthSession, getAuthSession } from "@/lib/auth";
 
 export const ConsoleSidebar: React.FC = () => {
   const pathname = usePathname();
   const { alerts, guards, cameras, currentUser } = useIBVAPStore();
-  const [authSession, setAuthSession] = useState<AuthSession | null>(null);
-
-  useEffect(() => {
-    setAuthSession(getAuthSession());
-  }, []);
 
   const openAlertsCount = alerts.filter((a) => a.status === "open").length;
   const criticalCount = alerts.filter((a) => a.status === "open" && a.level === "critical").length;
@@ -69,9 +63,8 @@ export const ConsoleSidebar: React.FC = () => {
       href: "/admin",
       icon: Sliders,
       desc: "Power & Sensitivity",
-      adminOnly: true,
     },
-  ].filter((item) => !item.adminOnly || authSession?.tier === "admin");
+  ];
 
   return (
     <aside className="w-64 bg-[#FFFFFF] border-r border-[#CBDCEB] flex flex-col shrink-0 select-none z-20 overflow-y-auto shadow-sm">
@@ -100,7 +93,7 @@ export const ConsoleSidebar: React.FC = () => {
         </div>
         <div className="text-right">
           <span className="text-[#0F172A] font-bold block">OPERATOR</span>
-          <span className="text-[#0284C7] font-bold">{authSession?.operatorId || currentUser?.badgeId || "OP_01"}</span>
+          <span className="text-[#0284C7] font-bold">{currentUser?.badgeId || "OP_01"}</span>
         </div>
       </div>
 

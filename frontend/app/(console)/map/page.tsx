@@ -31,7 +31,7 @@ export default function MapPage() {
               SECTOR GIS RADAR // ZERO-LINE DEMARCATION
             </h1>
             <p className="text-[11px] text-[#475569] mt-0.5 font-sans">
-              Geospatial coordinate overlay of optical sensors, sentry patrol pins, and tripwires. Satellite imagery is a periodic basemap, not a live feed.
+              Geospatial coordinate overlay of optical sensors, sentry patrol pins, and tripwires.
             </p>
           </div>
         </div>

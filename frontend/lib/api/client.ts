@@ -3,11 +3,9 @@ import {
   Alert,
   Camera,
   Guard,
-  GuardStatus,
   Sector,
   Shift,
 } from "@/lib/types";
-import { AuthSession, getAuthSession } from "@/lib/auth";
 
 export interface BlockchainStatus {
   configured: boolean;
@@ -67,28 +65,6 @@ export interface BootstrapResponse {
   firebase: FirebaseStatus;
 }
 
-export interface CreateGuardPayload {
-  id?: string;
-  name: string;
-  rank: string;
-  badgeId: string;
-  operatorId?: string;
-  passcode: string;
-  phone?: string;
-  callSign?: string;
-  sector?: string;
-  postId?: string;
-  status?: GuardStatus;
-  bloodGroup?: string;
-  certifications?: string;
-  photoUrl?: string;
-  emergencyContactName?: string;
-  emergencyContactPhone?: string;
-  emergencyContactRelation?: string;
-  shiftStart?: string;
-  shiftEnd?: string;
-}
-
 export interface FrameDetection {
   label: string;
   source: "person_tracking" | "face_detection" | "anpr" | string;
@@ -137,10 +113,6 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (typeof init.body === "string" && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
-  const session = getAuthSession();
-  if (session?.token && !headers.has("Authorization")) {
-    headers.set("Authorization", `Bearer ${session.token}`);
-  }
 
   const response = await fetch(`${apiBaseUrl()}${path}`, {
     ...init,
@@ -156,11 +128,6 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const backendApi = {
-  login: (operatorId: string, passcode: string) =>
-    request<{ session: Omit<AuthSession, "token">; token: string }>("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ operatorId, passcode }),
-    }),
   getBootstrap: () => request<BootstrapResponse>("/bootstrap"),
   getBlockchainStatus: () => request<BlockchainStatus>("/blockchain/status"),
   getFirebaseStatus: () => request<FirebaseStatus>("/firebase/status"),
@@ -187,11 +154,6 @@ export const backendApi = {
     request(`/alerts`, { method: "POST", body: JSON.stringify(alert) }),
   addActivity: (entry: ActivityLogEntry) =>
     request(`/activity`, { method: "POST", body: JSON.stringify(entry) }),
-  createGuard: (payload: CreateGuardPayload) =>
-    request<{ guard: Guard; accessTier: string }>("/guards", {
-      method: "POST",
-      body: JSON.stringify(payload),
-    }),
   updateGuard: (guardId: string, changes: Partial<Guard>) =>
     request(`/guards/${encodeURIComponent(guardId)}`, {
       method: "PATCH",

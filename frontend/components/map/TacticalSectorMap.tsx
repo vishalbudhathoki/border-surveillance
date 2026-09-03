@@ -14,18 +14,10 @@ import {
   RotateCcw,
   Radio,
   Eye,
-  Satellite,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { tacticalSound } from "@/lib/sound";
 import Link from "next/link";
-
-type BaseLayer = "tactical" | "satellite";
-
-// Esri World Imagery is a public, free-to-use basemap endpoint for this demo.
-// The export is a periodic imagery snapshot, never a live surveillance feed.
-const SATELLITE_IMAGERY_URL =
-  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=74.862%2C31.615%2C74.948%2C31.692&bboxSR=4326&imageSR=4326&size=1600%2C960&format=jpg&transparent=false&f=image";
 
 interface TacticalSectorMapProps {
   sectors: Sector[];
@@ -49,7 +41,6 @@ export const TacticalSectorMap: React.FC<TacticalSectorMapProps> = ({
   const [selectedCamera, setSelectedCamera] = useState<Camera | null>(null);
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
   const [selectedGuard, setSelectedGuard] = useState<Guard | null>(null);
-  const [baseLayer, setBaseLayer] = useState<BaseLayer>("tactical");
 
   // Layer Toggles
   const [layers, setLayers] = useState({
@@ -116,36 +107,6 @@ export const TacticalSectorMap: React.FC<TacticalSectorMapProps> = ({
 
         {/* Quick Layer Toggles */}
         <div className="flex items-center gap-1.5 overflow-x-auto py-1">
-          <span className="text-[10px] text-[#475569] font-bold uppercase tracking-wider mr-1">BASE:</span>
-          <button
-            onClick={() => {
-              tacticalSound.playClick();
-              setBaseLayer("tactical");
-            }}
-            className={cn(
-              "px-2 py-0.5 rounded-none text-[10px] border flex items-center gap-1 transition-colors font-bold uppercase tracking-wider",
-              baseLayer === "tactical"
-                ? "bg-[#0284C7] text-white border-[#0284C7] shadow-sm"
-                : "bg-[#FFFFFF] text-[#475569] border-[#CBDCEB] hover:text-[#0F172A]"
-            )}
-          >
-            <Radio className="w-3 h-3" /> MAP VIEW
-          </button>
-          <button
-            onClick={() => {
-              tacticalSound.playClick();
-              setBaseLayer("satellite");
-            }}
-            className={cn(
-              "px-2 py-0.5 rounded-none text-[10px] border flex items-center gap-1 transition-colors font-bold uppercase tracking-wider",
-              baseLayer === "satellite"
-                ? "bg-[#0284C7] text-white border-[#0284C7] shadow-sm"
-                : "bg-[#FFFFFF] text-[#475569] border-[#CBDCEB] hover:text-[#0F172A]"
-            )}
-          >
-            <Satellite className="w-3 h-3" /> SATELLITE VIEW
-          </button>
-
           <button
             onClick={() => toggleLayer("cameras")}
             className={cn(
@@ -244,26 +205,7 @@ export const TacticalSectorMap: React.FC<TacticalSectorMapProps> = ({
       </div>
 
       {/* Main SVG Canvas Viewport - Tactical Deep Oceanic Navy */}
-      <div
-        className={cn(
-          "relative flex-1 overflow-hidden cursor-grab active:cursor-grabbing",
-          baseLayer === "satellite" ? "bg-[#334155]" : "bg-[#0B192C]"
-        )}
-      >
-        {baseLayer === "satellite" && (
-          <div className="absolute inset-0 z-0">
-            <img
-              src={SATELLITE_IMAGERY_URL}
-              alt="Periodic satellite imagery base layer"
-              className="absolute inset-0 h-full w-full object-cover"
-            />
-            <div className="absolute inset-0 bg-[#0B192C]/25" />
-            <div className="absolute top-3 right-3 border border-white/60 bg-[#0F172A]/75 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-white">
-              SATELLITE IMAGERY // PERIODIC BASE LAYER // NOT LIVE VIDEO
-            </div>
-          </div>
-        )}
-
+      <div className="relative flex-1 bg-[#0B192C] overflow-hidden cursor-grab active:cursor-grabbing">
         {/* Radar concentric range rings */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-30">
           <div className="w-[300px] h-[300px] border border-[#38BDF8] rounded-full" />
@@ -274,7 +216,7 @@ export const TacticalSectorMap: React.FC<TacticalSectorMapProps> = ({
         {/* SVG Map Elements */}
         <svg
           viewBox="0 0 1000 600"
-          className="absolute inset-0 z-10 w-full h-full transition-transform duration-300"
+          className="absolute inset-0 w-full h-full transition-transform duration-300"
           style={{ transform: `scale(${zoomLevel})` }}
         >
           {/* Zero-Line Border */}
@@ -589,9 +531,7 @@ export const TacticalSectorMap: React.FC<TacticalSectorMapProps> = ({
         <div>COORDINATES: LAT 31.6540° N // LON 74.9050° E</div>
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-[#0284C7] animate-pulse" />
-          <span className="text-[#0284C7] font-bold">
-            GIS_RADAR_ACTIVE // BASE: {baseLayer === "satellite" ? "SATELLITE IMAGERY" : "TACTICAL MAP"}
-          </span>
+          <span className="text-[#0284C7] font-bold">GIS_RADAR_ACTIVE</span>
         </div>
       </div>
     </div>

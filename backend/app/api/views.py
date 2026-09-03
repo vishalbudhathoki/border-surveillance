@@ -6,8 +6,6 @@ import json
 from datetime import datetime, timezone
 from typing import Any, Callable
 
-from django.core import signing
-from django.contrib.auth.hashers import make_password
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -22,23 +20,6 @@ from ..services.evidence.firebase import get_status as firebase_status
 @require_http_methods(["GET"])
 def health(request: HttpRequest) -> JsonResponse:
     return JsonResponse({"status": "ok", "service": "border-surveillance-django", "storage": "local-state"})
-
-
-@csrf_exempt
-@require_http_methods(["POST"])
-def auth_login(request: HttpRequest) -> JsonResponse:
-    payload = _body(request)
-    operator_id = str(payload.get("operatorId") or "").strip()
-    passcode = str(payload.get("passcode") or "")
-    if not operator_id or not passcode:
-        return _error("operatorId and passcode are required")
-
-    repository.ensure_demo_auth_users()
-    session = repository.authenticate_user(operator_id, passcode)
-    if not session:
-        return _error("invalid operator credentials", 401)
-    token = signing.dumps(session, salt="borderlens.console.auth")
-    return JsonResponse({"session": session, "token": token})
 
 
 @require_http_methods(["GET"])
@@ -83,78 +64,6 @@ def inference_frame(request: HttpRequest) -> JsonResponse:
         return _error(str(exc), 503)
     except Exception:
         return _error("AI inference failed for this frame", 503)
-
-
-@csrf_exempt
-@require_http_methods(["POST"])
-def create_guard(request: HttpRequest) -> JsonResponse:
-    session = _session_from_request(request)
-    if not session or session.get("tier") != "admin":
-        return _error("administrator access is required", 403)
-
-    payload = _body(request)
-    name = str(payload.get("name") or "").strip()
-    rank = str(payload.get("rank") or "").strip()
-    badge_id = str(payload.get("badgeId") or "").strip().upper()
-    operator_id = str(payload.get("operatorId") or badge_id).strip().upper()
-    passcode = str(payload.get("passcode") or "")
-    if not name or not rank or not badge_id or not operator_id:
-        return _error("name, rank, badgeId, and operatorId are required")
-    if len(passcode) < 6:
-        return _error("passcode must be at least 6 characters")
-    if str(payload.get("status") or "off_duty") not in {
-        "on_post",
-        "patrolling",
-        "break",
-        "unreachable",
-        "off_duty",
-    }:
-        return _error("status must be on_post, patrolling, break, unreachable, or off_duty")
-
-    guard_id = str(payload.get("id") or f"G-{badge_id}").strip().upper()
-    if not guard_id:
-        return _error("guard id is required")
-    access_tier = _access_tier_for_rank(rank)
-    guard = {
-        "id": guard_id,
-        "name": name,
-        "rank": rank,
-        "badgeId": badge_id,
-        "photoUrl": str(payload.get("photoUrl") or ""),
-        "phone": str(payload.get("phone") or ""),
-        "emergencyContact": {
-            "name": str(payload.get("emergencyContactName") or ""),
-            "phone": str(payload.get("emergencyContactPhone") or ""),
-            "relation": str(payload.get("emergencyContactRelation") or ""),
-        },
-        "callSign": str(payload.get("callSign") or guard_id),
-        "certifications": [
-            item.strip()
-            for item in str(payload.get("certifications") or "").split(",")
-            if item.strip()
-        ],
-        "bloodGroup": str(payload.get("bloodGroup") or ""),
-        "status": str(payload.get("status") or "off_duty"),
-        "currentPostId": str(payload.get("postId") or "") or None,
-        "currentSector": str(payload.get("sector") or "") or None,
-        "shiftStart": str(payload.get("shiftStart") or ""),
-        "shiftEnd": str(payload.get("shiftEnd") or ""),
-        "attendanceHistory": [],
-    }
-    auth_user = {
-        "id": operator_id,
-        "operatorId": operator_id,
-        "passwordHash": make_password(passcode),
-        "name": name,
-        "rank": rank,
-        "role": "Guard access",
-        "tier": access_tier,
-    }
-    try:
-        created = repository.create_guard_with_credentials(guard, auth_user)
-    except ValueError as exc:
-        return _error(str(exc), 409)
-    return JsonResponse({"guard": created, "accessTier": access_tier}, status=201)
 
 
 @csrf_exempt
@@ -501,23 +410,3 @@ def _now() -> str:
 
 def _error(message: str, status: int = 400) -> JsonResponse:
     return JsonResponse({"error": message}, status=status)
-
-
-def _session_from_request(request: HttpRequest) -> dict[str, Any] | None:
-    header = request.headers.get("Authorization", "")
-    if not header.startswith("Bearer "):
-        return None
-    try:
-        value = signing.loads(header[7:], salt="borderlens.console.auth", max_age=60 * 60 * 12)
-    except signing.BadSignature:
-        return None
-    return value if isinstance(value, dict) else None
-
-
-def _access_tier_for_rank(rank: str) -> str:
-    normalized = rank.strip().casefold()
-    if normalized in {"administrator", "admin", "system administrator"}:
-        return "admin"
-    if normalized in {"inspector", "sub-inspector", "assistant commandant", "commandant"}:
-        return "command"
-    return "field"

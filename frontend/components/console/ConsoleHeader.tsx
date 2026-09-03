@@ -12,9 +12,7 @@ import {
 } from "lucide-react";
 import { useIBVAPStore } from "@/lib/store/useIBVAPStore";
 import { formatTimeIST } from "@/lib/utils";
-import { tacticalSound } from "@/lib/sound";
 import { TacticalButton } from "../shared/TacticalButton";
-import { AuthSession, clearAuthSession, getAuthSession } from "@/lib/auth";
 
 export const ConsoleHeader: React.FC = () => {
   const {
@@ -31,7 +29,6 @@ export const ConsoleHeader: React.FC = () => {
 
   const [currentTime, setCurrentTime] = useState<string>("");
   const [utcTime, setUtcTime] = useState<string>("");
-  const [authSession, setAuthSession] = useState<AuthSession | null>(null);
   const totalQueued = offlineQueue.length + offlineLogQueue.length;
 
   useEffect(() => {
@@ -44,16 +41,6 @@ export const ConsoleHeader: React.FC = () => {
     const interval = setInterval(updateTimes, 1000);
     return () => clearInterval(interval);
   }, []);
-
-  useEffect(() => {
-    setAuthSession(getAuthSession());
-  }, []);
-
-  const handleSignOut = () => {
-    tacticalSound.playClick();
-    clearAuthSession();
-    window.location.href = "/login";
-  };
 
   return (
     <header className="h-14 bg-[#FFFFFF] border-b border-[#CBDCEB] px-4 flex items-center justify-between z-30 shrink-0 select-none font-mono shadow-sm">
@@ -99,13 +86,6 @@ export const ConsoleHeader: React.FC = () => {
 
       {/* Right Controls */}
       <div className="flex items-center gap-2.5">
-        {authSession && (
-          <div className="hidden lg:block border border-[#CBDCEB] bg-[#F0F6FC] px-2.5 py-1 text-[10px] uppercase">
-            <span className="text-[#64748B]">{authSession.rank} // </span>
-            <span className="font-bold text-[#0369A1]">{authSession.operatorId}</span>
-          </div>
-        )}
-
         {/* Blockchain Status */}
         <div
           title={blockchainStatus.message}
@@ -155,9 +135,11 @@ export const ConsoleHeader: React.FC = () => {
         </TacticalButton>
 
         {/* Sign Out */}
-        <button onClick={handleSignOut} title={`Sign out ${authSession?.operatorId || "operator"}`} className="p-2 bg-[#F0F6FC] hover:bg-[#E0F2FE] text-[#64748B] hover:text-[#0F172A] border border-[#CBDCEB] transition-colors rounded-none">
-          <LogOut className="w-3.5 h-3.5" />
-        </button>
+        <Link href="/login" title="Exit to Login">
+          <button className="p-2 bg-[#F0F6FC] hover:bg-[#E0F2FE] text-[#64748B] hover:text-[#0F172A] border border-[#CBDCEB] transition-colors rounded-none">
+            <LogOut className="w-3.5 h-3.5" />
+          </button>
+        </Link>
       </div>
     </header>
   );

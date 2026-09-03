@@ -33,7 +33,6 @@ def empty_state() -> dict[str, Any]:
         "sectors": [],
         "pois": [],
         "anprRecords": [],
-        "authUsers": [],
         "system": {"lockdownActive": False, "defconLevel": 2},
     }
 
@@ -47,19 +46,11 @@ class ApiRepository:
 
     def snapshot(self) -> dict[str, Any]:
         with self._lock:
-            state = deepcopy(self._state)
-            # Password hashes are backend-only and must never be sent to the UI.
-            state.pop("authUsers", None)
-            return state
+            return deepcopy(self._state)
 
     def reset(self) -> dict[str, Any]:
         with self._lock:
-            auth_users = deepcopy(self._state.get("authUsers", []))
             self._state = empty_state()
-            # Reset operational telemetry without deleting provisioned guard
-            # credentials. Administrators should not lose accounts by using
-            # the UI's cache reset action.
-            self._state["authUsers"] = auth_users
             self._persist()
             return deepcopy(self._state)
 
@@ -127,84 +118,6 @@ class ApiRepository:
             self._persist()
             return deepcopy(self._state["currentUser"])
 
-    def create_guard_with_credentials(
-        self, guard: dict[str, Any], auth_user: dict[str, Any]
-    ) -> dict[str, Any]:
-        with self._lock:
-            if any(item.get("id") == guard.get("id") for item in self._state.get("guards", [])):
-                raise ValueError("guard id already exists")
-            if any(
-                str(item.get("operatorId", "")).casefold()
-                == str(auth_user.get("operatorId", "")).casefold()
-                for item in self._state.get("authUsers", [])
-            ):
-                raise ValueError("operator id already exists")
-            self._upsert_locked("guards", guard)
-            self._upsert_locked("authUsers", auth_user)
-            self._persist()
-            return deepcopy(guard)
-
-    def ensure_demo_auth_users(self) -> None:
-        """Create local demo credentials when an older state has no auth users."""
-        from django.contrib.auth.hashers import make_password
-
-        defaults = [
-            {
-                "id": "ADMIN-001",
-                "operatorId": "ADMIN-001",
-                "passwordHash": make_password("BL-ADMIN-2026"),
-                "name": "BorderLens System Administrator",
-                "rank": "Administrator",
-                "role": "Full system access",
-                "tier": "admin",
-            },
-            {
-                "id": "SSB-2041",
-                "operatorId": "SSB-2041",
-                "passwordHash": make_password("BL-COMMAND-2041"),
-                "name": "Inspector Arjun Mehta",
-                "rank": "Inspector",
-                "role": "Border Operations Lead",
-                "tier": "command",
-            },
-            {
-                "id": "SSB-2098",
-                "operatorId": "SSB-2098",
-                "passwordHash": make_password("BL-FIELD-2098"),
-                "name": "Rifleman Neha Rawat",
-                "rank": "Rifleman",
-                "role": "Field Sentry",
-                "tier": "field",
-            },
-        ]
-        with self._lock:
-            users = self._state.setdefault("authUsers", [])
-            existing_ids = {str(item.get("operatorId", "")).casefold() for item in users}
-            changed = False
-            for user in defaults:
-                if user["operatorId"].casefold() not in existing_ids:
-                    users.append(user)
-                    changed = True
-            if changed:
-                self._persist()
-
-    def authenticate_user(self, operator_id: str, passcode: str) -> Optional[dict[str, Any]]:
-        from django.contrib.auth.hashers import check_password
-
-        normalized_id = operator_id.strip().casefold()
-        with self._lock:
-            users = deepcopy(self._state.get("authUsers", []))
-        for user in users:
-            if str(user.get("operatorId", "")).casefold() != normalized_id:
-                continue
-            if check_password(passcode, str(user.get("passwordHash", ""))):
-                return {
-                    key: value
-                    for key, value in user.items()
-                    if key not in {"id", "passwordHash"}
-                }
-        return None
-
     def _upsert_locked(self, collection: str, item: dict[str, Any]) -> None:
         items = self._state.setdefault(collection, [])
         for index, existing in enumerate(items):
@@ -217,7 +130,6 @@ class ApiRepository:
         try:
             payload = json.loads(self.path.read_text(encoding="utf-8"))
             if isinstance(payload, dict) and payload.get("schemaVersion") == STATE_SCHEMA_VERSION:
-                payload.setdefault("authUsers", [])
                 return payload
         except (OSError, ValueError, TypeError):
             pass

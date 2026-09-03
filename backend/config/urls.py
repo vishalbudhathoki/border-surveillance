@@ -5,12 +5,10 @@ from app.api import views
 
 urlpatterns = [
     path("api/health", views.health),
-    path("api/auth/login", views.auth_login),
     path("api/bootstrap", views.bootstrap),
     path("api/blockchain/status", views.blockchain_status),
     path("api/firebase/status", views.firebase_status_view),
     path("api/inference/frame", views.inference_frame),
-    path("api/guards", views.create_guard),
     path("api/alerts", views.alerts),
     path("api/alerts/<str:alert_id>/action", views.alert_action),
     path("api/alerts/<str:alert_id>/anchor", views.anchor_alert),

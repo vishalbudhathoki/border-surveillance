@@ -465,11 +465,6 @@ export const LocalCameraFeed: React.FC<LocalCameraFeedProps> = ({ className }) =
             </TacticalButton>
           </div>
         )}
-        {sourceMode === "network" && (
-          <p className="text-[10px] leading-relaxed text-[#64748B]">
-            LAN CCTV: connect the camera and this computer to the same network, then enter its HTTP(S), HLS, or WebRTC URL. Raw RTSP needs a local HLS/WebRTC relay before browser playback.
-          </p>
-        )}
       </div>
 
       {/* Video Display Area */}

@@ -3,47 +3,21 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { AlertCircle, Key, Lock, Radio, Shield } from "lucide-react";
+import { Key, Lock, Radio, Shield } from "lucide-react";
 import { TacticalButton } from "@/components/shared/TacticalButton";
 import { tacticalSound } from "@/lib/sound";
-import { authenticate, saveAuthSession } from "@/lib/auth";
-import { ApiError, backendApi } from "@/lib/api/client";
 
 export default function LoginPage() {
   const router = useRouter();
   const [operatorId, setOperatorId] = useState("");
   const [passcode, setPasscode] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
-  const [error, setError] = useState("");
 
-  const handleLogin = async (event: React.FormEvent) => {
+  const handleLogin = (event: React.FormEvent) => {
     event.preventDefault();
     tacticalSound.playClick();
-    setError("");
     setIsVerifying(true);
-    try {
-      const response = await backendApi.login(operatorId, passcode);
-      const session = { ...response.session, token: response.token };
-      saveAuthSession(session);
-      router.push(session.tier === "admin" ? "/admin" : session.tier === "field" ? "/live-feed" : "/dashboard");
-    } catch (loginError) {
-      // Keep the UI preview usable when Django is intentionally offline. The
-      // backend path above is authoritative whenever the API is reachable.
-      if (!(loginError instanceof ApiError)) {
-        const localSession = authenticate(operatorId, passcode);
-        if (localSession) {
-          saveAuthSession(localSession);
-          router.push(localSession.tier === "admin" ? "/admin" : localSession.tier === "field" ? "/live-feed" : "/dashboard");
-          return;
-        }
-      }
-      setError(
-        loginError instanceof ApiError && loginError.status === 503
-          ? "AUTHORITY UNAVAILABLE // START THE DJANGO BACKEND"
-          : "ACCESS DENIED // CHECK OPERATOR ID AND SECURITY PASSCODE"
-      );
-      setIsVerifying(false);
-    }
+    window.setTimeout(() => router.push("/dashboard"), 500);
   };
 
   return (
@@ -107,23 +81,7 @@ export default function LoginPage() {
               {isVerifying ? "AUTHENTICATING..." : "VERIFY & ENTER CONSOLE"}
             </TacticalButton>
           </div>
-          {error && (
-            <div className="flex items-center gap-2 border border-[#FCA5A5] bg-[#FEF2F2] px-3 py-2 text-[10px] font-bold text-[#B91C1C]">
-              <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
         </form>
-
-        <div className="mt-6 border border-[#CBDCEB] bg-[#F0F6FC] p-3 text-[10px] text-[#475569]">
-          <div className="font-bold uppercase tracking-widest text-[#0369A1]">DEMO ACCESS TIERS</div>
-          <div className="mt-2 space-y-1 font-mono">
-            <div><strong>ADMIN-001</strong> // administrator</div>
-            <div><strong>SSB-2041</strong> // inspector command</div>
-            <div><strong>SSB-2098</strong> // rifleman field</div>
-          </div>
-          <p className="mt-2 text-[9px] text-[#64748B]">Use the configured demo passcodes for this preview. Production should use server-side or Firebase authentication.</p>
-        </div>
 
         <div className="mt-6 pt-4 border-t border-[#CBDCEB] flex items-center justify-between text-[10px] text-[#64748B]">
           <div className="flex items-center gap-1.5">

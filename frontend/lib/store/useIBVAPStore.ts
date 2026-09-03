@@ -11,7 +11,7 @@ import {
 } from "../types";
 import { tacticalSound } from "../sound";
 import { generateId } from "../utils";
-import { backendApi, BlockchainStatus, BootstrapData, CreateGuardPayload, FirebaseStatus } from "../api/client";
+import { backendApi, BlockchainStatus, BootstrapData, FirebaseStatus } from "../api/client";
 
 interface UserProfile {
   name: string;
@@ -71,7 +71,6 @@ interface IBVAPState {
   acknowledgeAlert: (alertId: string, actorName?: string) => void;
   escalateAlert: (alertId: string, actorName?: string) => void;
   addAlert: (alert: Omit<Alert, "id" | "timestamp" | "status" | "acknowledgedBy">) => void;
-  addGuard: (payload: CreateGuardPayload) => Promise<Guard>;
 
   updateGuardStatus: (guardId: string, status: GuardStatus) => void;
   quickHandover: (outgoingGuardId: string, incomingGuardId: string, notes?: string) => void;
@@ -344,21 +343,6 @@ export const useIBVAPStore = create<IBVAPState>((set, get) => {
         details: `Detected ${newAlert.level.toUpperCase()}: ${newAlert.eventType}. Confidence: ${newAlert.confidence}%.`,
       });
       refreshAfter(backendApi.createAlert(newAlert));
-    },
-
-    addGuard: async (payload) => {
-      const response = await backendApi.createGuard(payload);
-      set((state) => ({ guards: [response.guard, ...state.guards] }));
-      addLocalActivity({
-        actorId: get().currentUser.badgeId,
-        actorName: get().currentUser.name,
-        actionType: "guard_created",
-        targetType: "system",
-        targetId: response.guard.id,
-        sector: response.guard.currentSector || "All Sectors",
-        details: `Created ${response.guard.rank} guard ${response.guard.name} with ${response.accessTier} access.`,
-      });
-      return response.guard;
     },
 
     updateGuardStatus: (guardId, status) => {
