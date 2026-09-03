@@ -82,9 +82,9 @@ export function clearAuthSession(): void {
 }
 
 const ACCESSIBLE_ROUTES: Record<AccessTier, string[]> = {
-  admin: ["/dashboard", "/live-feed", "/alerts", "/map", "/analytics", "/guard-duty", "/admin"],
-  command: ["/dashboard", "/live-feed", "/alerts", "/map", "/analytics", "/guard-duty"],
-  field: ["/live-feed", "/alerts", "/map", "/analytics", "/guard-duty"],
+  admin: ["/dashboard", "/live-feed", "/alerts", "/map", "/guard-duty", "/admin"],
+  command: ["/dashboard", "/live-feed", "/alerts", "/map", "/guard-duty"],
+  field: ["/live-feed", "/alerts", "/map", "/guard-duty"],
 };
 
 export function canAccessRoute(session: AuthSession, pathname: string): boolean {

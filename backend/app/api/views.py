@@ -41,71 +41,8 @@ def auth_login(request: HttpRequest) -> JsonResponse:
     return JsonResponse({"session": session, "token": token})
 
 
-@csrf_exempt
-@require_http_methods(["GET", "POST"])
-def watchlist(request: HttpRequest) -> JsonResponse:
-    if request.method == "GET":
-        repository.ensure_demo_watchlist()
-        return JsonResponse({"watchlistEntries": repository.snapshot().get("watchlistEntries", [])})
-
-    session = _session_from_request(request)
-    if not session or session.get("tier") != "admin":
-        return _error("administrator access is required", 403)
-
-    payload = _body(request)
-    entry_type = str(payload.get("type") or "").strip().lower()
-    if entry_type not in {"plate", "face"}:
-        return _error("watchlist type must be plate or face")
-    value = str(payload.get("value") or "").strip()
-    label = str(payload.get("label") or "").strip()
-    reason = str(payload.get("reason") or "").strip()
-    status = str(payload.get("status") or "Blacklisted").strip()
-    allowed_statuses = {
-        "Blacklisted",
-        "Authorized",
-        "Suspicious",
-        "Missing Person",
-        "Under Surveillance",
-    }
-    if not value or not label:
-        return _error("value and label are required")
-    if status not in allowed_statuses:
-        return _error("unsupported watchlist status")
-
-    normalized_value = "".join(value.upper().split()) if entry_type == "plate" else value.casefold()
-    if any(
-        str(item.get("type")) == entry_type
-        and str(item.get("value", "")).casefold() == normalized_value.casefold()
-        for item in repository.snapshot().get("watchlistEntries", [])
-    ):
-        return _error("watchlist value already exists", 409)
-
-    entry = {
-        "id": str(payload.get("id") or f"WATCH-{int(datetime.now(timezone.utc).timestamp() * 1000)}").upper(),
-        "type": entry_type,
-        "value": normalized_value,
-        "label": label,
-        "reason": reason,
-        "status": status,
-        "createdAt": _now(),
-    }
-    return JsonResponse({"entry": repository.upsert("watchlistEntries", entry)}, status=201)
-
-
-@csrf_exempt
-@require_http_methods(["DELETE"])
-def watchlist_detail(request: HttpRequest, entry_id: str) -> JsonResponse:
-    session = _session_from_request(request)
-    if not session or session.get("tier") != "admin":
-        return _error("administrator access is required", 403)
-    if not repository.delete("watchlistEntries", entry_id):
-        return _error("watchlist entry not found", 404)
-    return JsonResponse({"deleted": entry_id})
-
-
 @require_http_methods(["GET"])
 def bootstrap(request: HttpRequest) -> JsonResponse:
-    repository.ensure_demo_watchlist()
     data, firebase = _snapshot_with_firebase_alerts()
     return JsonResponse({
         "data": data,
@@ -221,44 +158,6 @@ def create_guard(request: HttpRequest) -> JsonResponse:
 
 
 @csrf_exempt
-@require_http_methods(["POST"])
-def dispatch_alert(request: HttpRequest, alert_id: str) -> JsonResponse:
-    session = _session_from_request(request)
-    if not session or session.get("tier") not in {"admin", "command"}:
-        return _error("command or administrator access is required", 403)
-    payload = _body(request)
-    guard_id = str(payload.get("guardId") or "").strip()
-    guard = repository.get("guards", guard_id)
-    alert = repository.get("alerts", alert_id)
-    if not guard:
-        return _error("guard not found", 404)
-    if not alert:
-        return _error("alert not found", 404)
-
-    current = repository.snapshot().get("currentUser", {})
-    updated = repository.update("alerts", alert_id, {
-        "assignedGuardId": guard_id,
-        "assignedGuardName": guard.get("name"),
-        "dispatchStatus": "dispatched",
-        "dispatchedAt": _now(),
-    })
-    log = _activity(
-        actor_id=str(current.get("badgeId") or "SYSTEM"),
-        actor_name=str(payload.get("actorName") or session.get("name") or current.get("name") or "SYSTEM"),
-        action_type="guard_dispatched",
-        target_type="alert",
-        target_id=alert_id,
-        sector=str(alert.get("sector") or "All Sectors"),
-        details=f"Dispatched {guard.get('name')} to {alert.get('eventType', 'incident')} at {alert.get('sector', 'All Sectors')}.",
-    )
-    firebase = _save_alert_to_firebase(updated or alert)
-    response = {"alert": updated, "activity": log, "firebase": firebase}
-    if firebase.get("alertsSynced") is False:
-        response["error"] = "Alert dispatch was saved locally but could not be updated in Firebase."
-    return JsonResponse(response, status=503 if firebase.get("alertsSynced") is False else 200)
-
-
-@csrf_exempt
 @require_http_methods(["GET", "POST"])
 def alerts(request: HttpRequest) -> JsonResponse:
     if request.method == "GET":
@@ -287,8 +186,8 @@ def alerts(request: HttpRequest) -> JsonResponse:
 def alert_action(request: HttpRequest, alert_id: str) -> JsonResponse:
     payload = _body(request)
     action = str(payload.get("action") or "").lower()
-    if action not in {"acknowledge", "escalate", "resolve"}:
-        return _error("action must be acknowledge, escalate, or resolve")
+    if action not in {"acknowledge", "escalate"}:
+        return _error("action must be acknowledge or escalate")
     alert = repository.get("alerts", alert_id)
     if not alert:
         _snapshot_with_firebase_alerts()
@@ -296,11 +195,7 @@ def alert_action(request: HttpRequest, alert_id: str) -> JsonResponse:
     if not alert:
         return _error("alert not found", 404)
     actor = str(payload.get("actorName") or repository.snapshot()["currentUser"]["name"])
-    status = {
-        "acknowledge": "acknowledged",
-        "escalate": "escalated",
-        "resolve": "resolved",
-    }[action]
+    status = "acknowledged" if action == "acknowledge" else "escalated"
     updated = repository.update("alerts", alert_id, {"status": status, "acknowledgedBy": actor})
     firebase = _save_alert_to_firebase(updated or alert)
     log = _activity(
@@ -504,9 +399,8 @@ def sync(request: HttpRequest) -> JsonResponse:
 @csrf_exempt
 @require_http_methods(["POST"])
 def reset(request: HttpRequest) -> JsonResponse:
-    repository.reset()
     return JsonResponse({
-        "data": repository.snapshot(),
+        "data": repository.reset(),
         "blockchain": blockchain.get_status(),
         "firebase": firebase_status(),
     })

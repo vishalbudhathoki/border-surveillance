@@ -44,10 +44,7 @@ export type ActionType =
   | "shift_ended"
   | "alert_acknowledged"
   | "alert_escalated"
-  | "alert_resolved"
-  | "guard_dispatched"
   | "guard_created"
-  | "watchlist_updated"
   | "patrol_checkin"
   | "lockdown_initiated"
   | "zone_map_committed"
@@ -68,7 +65,7 @@ export interface ActivityLogEntry {
 }
 
 export type AlertLevel = "critical" | "high" | "medium";
-export type AlertStatus = "open" | "acknowledged" | "escalated" | "resolved";
+export type AlertStatus = "open" | "acknowledged" | "escalated";
 export type ObjectClass = "Person" | "Vehicle" | "Weapon" | "Drone" | "Animal / False Alarm" | "Unknown";
 
 export interface Alert {
@@ -93,31 +90,6 @@ export interface Alert {
   evidenceSha256?: string;
   modelVersion?: string;
   modelArtifactHash?: string;
-  plateNumber?: string;
-  watchlistEntryId?: string;
-  evidenceSource?: "ai_frame" | "demo" | "uploaded" | "camera" | string;
-  assignedGuardId?: string | null;
-  assignedGuardName?: string | null;
-  dispatchStatus?: "unassigned" | "dispatched" | "arrived" | "resolved" | string;
-  dispatchedAt?: string | null;
-}
-
-export type WatchlistType = "plate" | "face";
-export type WatchlistStatus =
-  | "Blacklisted"
-  | "Authorized"
-  | "Suspicious"
-  | "Missing Person"
-  | "Under Surveillance";
-
-export interface WatchlistEntry {
-  id: string;
-  type: WatchlistType;
-  value: string;
-  label: string;
-  reason: string;
-  status: WatchlistStatus;
-  createdAt: string;
 }
 
 export type CameraType = "ptz" | "fixed" | "thermal";

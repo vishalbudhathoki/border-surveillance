@@ -16,7 +16,6 @@ import {
 import { cn } from "@/lib/utils";
 import { TacticalButton } from "@/components/shared/TacticalButton";
 import { backendApi, FrameDetection, FrameInferenceModule } from "@/lib/api/client";
-import { useIBVAPStore } from "@/lib/store/useIBVAPStore";
 
 interface LocalCameraFeedProps {
   className?: string;
@@ -27,26 +26,10 @@ type StreamSource = "camera" | "screen";
 type InferenceState = "idle" | "analyzing" | "ready" | "error";
 type SourceMode = "camera" | "file" | "network";
 
-interface TimelineEvent {
-  id: string;
-  label: string;
-  source: string;
-  confidence: number;
-  capturedAt: string;
-  videoTime: number | null;
-  detail?: string;
-}
-
 const INFERENCE_MODULES = ["person_tracking", "face_detection", "anpr"];
 
 const canvasToBlob = (canvas: HTMLCanvasElement) =>
   new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.72));
-
-const videoClock = (seconds: number | null) => {
-  if (seconds === null || !Number.isFinite(seconds)) return "LIVE";
-  const wholeSeconds = Math.max(0, Math.floor(seconds));
-  return `${Math.floor(wholeSeconds / 60).toString().padStart(2, "0")}:${(wholeSeconds % 60).toString().padStart(2, "0")}`;
-};
 
 const sourceButtonClass = (active: boolean) =>
   cn(
@@ -57,7 +40,6 @@ const sourceButtonClass = (active: boolean) =>
   );
 
 export const LocalCameraFeed: React.FC<LocalCameraFeedProps> = ({ className }) => {
-  const { watchlistEntries, addAlert } = useIBVAPStore();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -78,9 +60,6 @@ export const LocalCameraFeed: React.FC<LocalCameraFeedProps> = ({ className }) =
   const [modelName, setModelName] = useState("");
   const [inferenceMs, setInferenceMs] = useState<number | null>(null);
   const [modules, setModules] = useState<FrameInferenceModule[]>([]);
-  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
-  const timelineFingerprintRef = useRef({ value: "", timestamp: 0 });
-  const reportedMatchesRef = useRef<Set<string>>(new Set());
 
   const resetAnalysis = useCallback(() => {
     setDetections([]);
@@ -89,12 +68,6 @@ export const LocalCameraFeed: React.FC<LocalCameraFeedProps> = ({ className }) =
     setModules([]);
     setModelName("");
     setInferenceMs(null);
-  }, []);
-
-  const resetTimeline = useCallback(() => {
-    setTimelineEvents([]);
-    timelineFingerprintRef.current = { value: "", timestamp: 0 };
-    reportedMatchesRef.current.clear();
   }, []);
 
   const stopStream = useCallback(() => {
@@ -123,8 +96,7 @@ export const LocalCameraFeed: React.FC<LocalCameraFeedProps> = ({ className }) =
       videoRef.current.load();
     }
     resetAnalysis();
-    resetTimeline();
-  }, [releaseObjectUrl, resetAnalysis, resetTimeline, stopStream]);
+  }, [releaseObjectUrl, resetAnalysis, stopStream]);
 
   const attachStream = useCallback((stream: MediaStream, source: StreamSource) => {
     streamRef.current = stream;
@@ -305,78 +277,12 @@ export const LocalCameraFeed: React.FC<LocalCameraFeedProps> = ({ className }) =
     let requestRunning = false;
     let nextRun: number | null = null;
 
-    const applyResult = (
-      result: Awaited<ReturnType<typeof backendApi.analyzeFrame>>,
-      evidenceFrame: string
-    ) => {
+    const applyResult = (result: Awaited<ReturnType<typeof backendApi.analyzeFrame>>) => {
       setDetections(result.detections);
       setModules(result.modules);
       setModelName(`${result.model} · ${result.device.toUpperCase()}`);
       setInferenceMs(result.inferenceMs);
       setInferenceState("ready");
-
-      const detectionFingerprint = result.detections
-        .map((detection) => `${detection.source}:${detection.label}:${detection.attributes?.plate_number || ""}`)
-        .sort()
-        .join("|");
-      const now = Date.now();
-      if (detectionFingerprint && (
-        detectionFingerprint !== timelineFingerprintRef.current.value
-        || now - timelineFingerprintRef.current.timestamp > 1800
-      )) {
-        timelineFingerprintRef.current = { value: detectionFingerprint, timestamp: now };
-        const capturedAt = new Date().toISOString();
-        const events = result.detections.slice(0, 6).map((detection, index) => ({
-          id: `${capturedAt}-${index}`,
-          label: detection.attributes?.plate_number
-            ? `PLATE ${String(detection.attributes.plate_number)}`
-            : detection.label,
-          source: detection.source.replace(/_/g, " "),
-          confidence: detection.confidence,
-          capturedAt,
-          videoTime: sourceMode === "file" && videoRef.current
-            ? videoRef.current.currentTime
-            : null,
-          detail: detection.trackId ? `TRACK #${detection.trackId}` : undefined,
-        }));
-        setTimelineEvents((current) => [...events, ...current].slice(0, 40));
-      }
-
-      const normalized = (value: string) => value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-      result.detections.forEach((detection) => {
-        const attributes = detection.attributes || {};
-        const rawValue = detection.source === "anpr"
-          ? String(attributes.plate_number || "")
-          : String(attributes.identity || attributes.face_id || "");
-        if (!rawValue) return;
-        const entry = watchlistEntries.find((candidate) => {
-          if (candidate.type === "plate" && detection.source !== "anpr") return false;
-          if (candidate.type === "face" && detection.source !== "face_detection") return false;
-          const left = candidate.type === "plate" ? normalized(candidate.value) : candidate.value.toLowerCase();
-          const right = candidate.type === "plate" ? normalized(rawValue) : rawValue.toLowerCase();
-          return left === right;
-        });
-        if (!entry) return;
-        const matchKey = `${entry.id}:${rawValue}:${sourceLabel}`;
-        if (reportedMatchesRef.current.has(matchKey)) return;
-        reportedMatchesRef.current.add(matchKey);
-        const level = entry.status === "Authorized" ? "medium" : entry.status === "Blacklisted" ? "critical" : "high";
-        addAlert({
-          level,
-          sourceCameraId: "LOCAL-FEED",
-          sourceCameraName: sourceLabel,
-          eventType: `${detection.source === "anpr" ? "ANPR" : "FACE"} WATCHLIST MATCH // ${entry.label}`,
-          confidence: Math.round(detection.confidence * 100),
-          coordinates: { lat: 31.65, lng: 74.88 },
-          objectClass: detection.source === "anpr" ? "Vehicle" : "Person",
-          evidenceUrl: evidenceFrame,
-          sector: "Live Feed",
-          notes: `${entry.status} watchlist match for ${rawValue}. ${entry.reason || "Review the captured evidence frame."}`,
-          plateNumber: detection.source === "anpr" ? rawValue : undefined,
-          watchlistEntryId: entry.id,
-          evidenceSource: "ai_frame",
-        });
-      });
     };
 
     const analyzeCurrentFrame = async () => {
@@ -413,8 +319,7 @@ export const LocalCameraFeed: React.FC<LocalCameraFeedProps> = ({ className }) =
         const frame = await canvasToBlob(canvas);
         if (!frame) throw new Error("Could not encode the source frame.");
         const result = await backendApi.analyzeFrame(frame, INFERENCE_MODULES);
-        const evidenceFrame = canvas.toDataURL("image/jpeg", 0.68);
-        if (!cancelled) applyResult(result, evidenceFrame);
+        if (!cancelled) applyResult(result);
       } catch (analysisError) {
         if (!cancelled) {
           setInferenceState("error");
@@ -435,7 +340,7 @@ export const LocalCameraFeed: React.FC<LocalCameraFeedProps> = ({ className }) =
       cancelled = true;
       if (nextRun !== null) window.clearTimeout(nextRun);
     };
-  }, [addAlert, cameraState, resetAnalysis, sourceLabel, sourceMode, watchlistEntries]);
+  }, [cameraState, resetAnalysis, sourceMode]);
 
   const handleVideoReady = () => {
     if (sourceMode === "camera") return;
@@ -644,52 +549,6 @@ export const LocalCameraFeed: React.FC<LocalCameraFeedProps> = ({ className }) =
                 RETRY CAMERA
               </TacticalButton>
             )}
-          </div>
-        )}
-      </div>
-
-      {/* Detection Timeline */}
-      <div className="border-t border-[#CBDCEB] bg-[#FFFFFF] px-4 py-3 font-mono">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <span className="text-[10px] text-[#0F172A] font-bold uppercase tracking-widest">AI_DETECTION_TIMELINE</span>
-            <span className="ml-2 text-[9px] text-[#64748B] uppercase">{timelineEvents.length} events // click a file event to seek</span>
-          </div>
-          <button
-            type="button"
-            onClick={resetTimeline}
-            disabled={timelineEvents.length === 0}
-            className="border border-[#CBDCEB] bg-[#F0F6FC] px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-[#475569] hover:bg-[#E0F2FE] disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            CLEAR TIMELINE
-          </button>
-        </div>
-        {timelineEvents.length === 0 ? (
-          <div className="mt-2 border border-[#CBDCEB] bg-[#F8FBFE] px-3 py-2 text-[10px] text-[#64748B]">
-            Detection events will appear here after the first analyzed frame.
-          </div>
-        ) : (
-          <div className="mt-2 max-h-28 overflow-y-auto border border-[#CBDCEB] bg-[#F8FBFE] divide-y divide-[#CBDCEB]">
-            {timelineEvents.map((event) => (
-              <button
-                key={event.id}
-                type="button"
-                onClick={() => {
-                  if (sourceMode !== "file" || event.videoTime === null || !videoRef.current) return;
-                  videoRef.current.currentTime = event.videoTime;
-                  void videoRef.current.play().catch(() => undefined);
-                }}
-                className={cn(
-                  "flex w-full items-center gap-3 px-3 py-2 text-left text-[10px] transition-colors",
-                  sourceMode === "file" && event.videoTime !== null ? "cursor-pointer hover:bg-[#E0F2FE]" : "cursor-default"
-                )}
-              >
-                <span className="w-12 shrink-0 font-bold text-[#0284C7]">{videoClock(event.videoTime)}</span>
-                <span className="min-w-0 flex-1 truncate font-bold uppercase text-[#0F172A]">{event.label}</span>
-                <span className="hidden shrink-0 text-[#64748B] sm:inline">{event.source}</span>
-                <span className="shrink-0 text-[#0369A1]">{Math.round(event.confidence * 100)}%</span>
-              </button>
-            ))}
           </div>
         )}
       </div>

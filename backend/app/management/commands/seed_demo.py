@@ -197,39 +197,10 @@ class Command(BaseCommand):
             }
         ]
         state["anprRecords"] = []
-        state["watchlistEntries"] = [
-            {
-                "id": "WATCH-PLATE-001",
-                "type": "plate",
-                "value": "DL01AB1234",
-                "label": "Blacklisted transport",
-                "reason": "Vehicle linked to a prior perimeter breach.",
-                "status": "Blacklisted",
-                "createdAt": timestamp,
-            },
-            {
-                "id": "WATCH-PLATE-002",
-                "type": "plate",
-                "value": "WB06K7788",
-                "label": "Authorized logistics",
-                "reason": "Scheduled supply convoy.",
-                "status": "Authorized",
-                "createdAt": timestamp,
-            },
-            {
-                "id": "WATCH-FACE-001",
-                "type": "face",
-                "value": "demo-subject-07",
-                "label": "Person of interest",
-                "reason": "Demonstration face watchlist record.",
-                "status": "Under Surveillance",
-                "createdAt": timestamp,
-            },
-        ]
         state["system"] = {"lockdownActive": False, "defconLevel": 2}
 
         repository.update_current_user(state["currentUser"])
-        for collection in ("guards", "shifts", "cameras", "sectors", "alerts", "activityLog", "watchlistEntries"):
+        for collection in ("guards", "shifts", "cameras", "sectors", "alerts", "activityLog"):
             for item in state[collection]:
                 repository.upsert(collection, item)
         repository.system_update(state["system"])

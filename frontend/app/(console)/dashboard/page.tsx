@@ -16,7 +16,6 @@ import { StatusPill } from "@/components/shared/StatusPill";
 import { CameraVideoFeed } from "@/components/video/CameraVideoFeed";
 import { formatTimeIST, calculateTimeRemaining } from "@/lib/utils";
 import { tacticalSound } from "@/lib/sound";
-import { DemoIncidentButton } from "@/components/demo/DemoIncidentButton";
 
 export default function DashboardPage() {
   const {
@@ -56,16 +55,13 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <DemoIncidentButton />
-          <Link href="/guard-duty">
-            <div className="flex items-center gap-2 px-3 py-2 bg-[#F0F6FC] hover:bg-[#E0F2FE] border border-[#CBDCEB] text-xs font-bold text-[#0369A1] transition-colors rounded-none">
-              <AlertTriangle className="w-4 h-4 text-[#0284C7]" />
-              <span>{guards.length > 0 ? `${onDutyGuards.length}/${guards.length} POSTS ON DUTY` : "NO ROSTER DATA"}</span>
-              <ChevronRight className="w-3.5 h-3.5 text-[#0284C7]" />
-            </div>
-          </Link>
-        </div>
+        <Link href="/guard-duty">
+          <div className="flex items-center gap-2 px-3 py-2 bg-[#F0F6FC] hover:bg-[#E0F2FE] border border-[#CBDCEB] text-xs font-bold text-[#0369A1] transition-colors rounded-none">
+            <AlertTriangle className="w-4 h-4 text-[#0284C7]" />
+            <span>{guards.length > 0 ? `${onDutyGuards.length}/${guards.length} POSTS ON DUTY` : "NO ROSTER DATA"}</span>
+            <ChevronRight className="w-3.5 h-3.5 text-[#0284C7]" />
+          </div>
+        </Link>
       </div>
 
       {/* 4 High-Contrast KPI Cards */}
@@ -242,6 +238,7 @@ export default function DashboardPage() {
                   <p className="text-[11px] text-[#475569] font-sans mt-0.5 line-clamp-2 leading-snug">
                     {alert.notes}
                   </p>
+
                   <div className="text-[10px] text-[#64748B] mt-2 flex items-center justify-between">
                     <span>Cam: <strong className="text-[#0F172A]">{alert.sourceCameraId}</strong></span>
                     <span>Sec: <strong className="text-[#0F172A]">{alert.sector}</strong></span>

@@ -1,16 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
-  Download,
-  FileText,
-  Radio,
   ShieldAlert,
   Search,
   CheckCircle2,
   AlertTriangle,
   Phone,
-  Send,
 } from "lucide-react";
 import { useIBVAPStore } from "@/lib/store/useIBVAPStore";
 import { Alert } from "@/lib/types";
@@ -19,33 +15,20 @@ import { Modal } from "@/components/shared/Modal";
 import { formatTimeIST, formatDateIST } from "@/lib/utils";
 import { tacticalSound } from "@/lib/sound";
 import { BlockchainEvidenceCard } from "@/components/blockchain/BlockchainEvidenceCard";
-import { AuthSession, getAuthSession } from "@/lib/auth";
-import { evidenceSource } from "@/lib/evidence";
-import { openIncidentReport } from "@/lib/reports";
 
 export default function AlertsPage() {
-  const { alerts, guards, watchlistEntries, acknowledgeAlert, escalateAlert, resolveAlert, dispatchAlert } = useIBVAPStore();
+  const { alerts, guards, acknowledgeAlert, escalateAlert } = useIBVAPStore();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<"ALL" | "PERIMETER" | "POI" | "ANPR" | "OPEN">("ALL");
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null);
-  const [authSession, setAuthSession] = useState<AuthSession | null>(null);
-  const [dispatchGuardId, setDispatchGuardId] = useState("");
-  const [isDispatching, setIsDispatching] = useState(false);
-  const [dispatchError, setDispatchError] = useState("");
-
-  useEffect(() => {
-    setAuthSession(getAuthSession());
-  }, []);
 
   const filteredAlerts = alerts.filter((a) => {
     const matchSearch =
       a.eventType.toLowerCase().includes(searchQuery.toLowerCase()) ||
       a.sourceCameraId.toLowerCase().includes(searchQuery.toLowerCase()) ||
       a.sector.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.plateNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      watchlistEntries.some((entry) => entry.id === a.watchlistEntryId && `${entry.value} ${entry.label}`.toLowerCase().includes(searchQuery.toLowerCase()));
+      a.id.toLowerCase().includes(searchQuery.toLowerCase());
 
     const isPoi = a.eventType.includes("POI") || a.eventType.includes("Facial");
     const isAnpr = a.eventType.includes("ANPR") || a.objectClass === "Vehicle";
@@ -60,41 +43,10 @@ export default function AlertsPage() {
     return matchSearch && matchCategory;
   });
 
-  const activeNodeAlert = (selectedAlert && alerts.find((alert) => alert.id === selectedAlert.id)) || filteredAlerts[0] || null;
+  const activeNodeAlert = selectedAlert || filteredAlerts[0] || null;
   const linkedGuard = activeNodeAlert
-    ? guards.find((g) => g.id === activeNodeAlert.assignedGuardId) || guards.find((g) => g.currentSector === activeNodeAlert.sector)
+    ? guards.find((g) => g.currentSector === activeNodeAlert.sector)
     : null;
-  const canDispatch = authSession?.tier === "admin" || authSession?.tier === "command";
-
-  const handleDispatch = async () => {
-    const selectedGuardId = dispatchGuardId || activeNodeAlert?.assignedGuardId || "";
-    if (!activeNodeAlert || !selectedGuardId) return;
-    setIsDispatching(true);
-    setDispatchError("");
-    try {
-      await dispatchAlert(activeNodeAlert.id, selectedGuardId, authSession?.name);
-      setDispatchGuardId("");
-    } catch (error) {
-      setDispatchError(error instanceof Error ? error.message : "Could not dispatch guard.");
-    } finally {
-      setIsDispatching(false);
-    }
-  };
-
-  const exportCsv = () => {
-    const escapeCsv = (value: unknown) => `"${String(value ?? "").replace(/"/g, '""')}"`;
-    const rows = [
-      ["Incident ID", "Timestamp", "Severity", "Status", "Event", "Camera", "Sector", "Plate", "Assigned Guard"],
-      ...filteredAlerts.map((alert) => [alert.id, alert.timestamp, alert.level, alert.status, alert.eventType, alert.sourceCameraId, alert.sector, alert.plateNumber || "", alert.assignedGuardName || ""]),
-    ];
-    const blob = new Blob([rows.map((row) => row.map(escapeCsv).join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `borderlens-incidents-${new Date().toISOString().slice(0, 10)}.csv`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <div className="space-y-6 font-mono">
@@ -114,18 +66,10 @@ export default function AlertsPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-end gap-2 text-xs">
+        <div className="flex items-center gap-2 text-xs">
           <span className="text-[#991B1B] font-bold bg-[#FEE2E2] px-3 py-1 border border-[#FCA5A5]">
             {alerts.filter((a) => a.status === "open").length} UNRESOLVED_INCIDENTS
           </span>
-          <button
-            type="button"
-            onClick={exportCsv}
-            disabled={filteredAlerts.length === 0}
-            className="flex items-center gap-1.5 border border-[#CBDCEB] bg-[#F0F6FC] px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#0369A1] hover:bg-[#E0F2FE] disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <Download className="h-3.5 w-3.5" /> EXPORT CSV
-          </button>
         </div>
       </div>
 
@@ -190,7 +134,7 @@ export default function AlertsPage() {
             {/* Image Panel - Full Natural Color */}
             <div className="lg:col-span-8 bg-[#0B1320] relative aspect-video flex items-center justify-center overflow-hidden">
               <img
-                src={evidenceSource(activeNodeAlert.evidenceUrl)}
+                src={activeNodeAlert.evidenceUrl}
                 alt="Surveillance Evidence Still"
                 className="w-full h-full object-cover"
               />
@@ -221,11 +165,6 @@ export default function AlertsPage() {
                   <div className="text-xs text-[#475569] font-bold">{activeNodeAlert.sector} // {activeNodeAlert.objectClass}</div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 border-b border-[#CBDCEB] pb-2 text-[10px]">
-                  <div><span className="block uppercase text-[#64748B]">PLATE / WATCHLIST</span><strong className="text-[#0F172A]">{activeNodeAlert.plateNumber || "NONE"}</strong></div>
-                  <div><span className="block uppercase text-[#64748B]">DISPATCH</span><strong className="text-[#0F172A]">{activeNodeAlert.dispatchStatus || "UNASSIGNED"}</strong></div>
-                </div>
-
                 <div className="border-b border-[#CBDCEB] pb-2">
                   <div className="text-[10px] text-[#64748B] uppercase tracking-wider mb-0.5 font-bold">OPERATOR_LOG</div>
                   <p className="text-xs text-[#475569] font-sans leading-relaxed">{activeNodeAlert.notes}</p>
@@ -251,51 +190,11 @@ export default function AlertsPage() {
                       <span>ESCALATE (QRF)</span>
                     </button>
                   </div>
-                ) : activeNodeAlert.status === "resolved" ? (
-                  <div className="text-xs text-[#166534] p-2 bg-[#DCFCE7] border border-[#86EFAC] font-bold">
-                    RESOLVED BY: <strong>{activeNodeAlert.acknowledgedBy || "OPERATOR"}</strong>
-                  </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => resolveAlert(activeNodeAlert.id)}
-                      className="flex items-center justify-center gap-1.5 bg-[#16A34A] px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-sm hover:bg-[#15803D]"
-                    >
-                      <CheckCircle2 className="h-4 w-4" /> RESOLVE
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => openIncidentReport(activeNodeAlert, linkedGuard)}
-                      className="flex items-center justify-center gap-1.5 border border-[#CBDCEB] bg-[#F0F6FC] px-3 py-2.5 text-xs font-bold uppercase tracking-wider text-[#0369A1] hover:bg-[#E0F2FE]"
-                    >
-                      <FileText className="h-4 w-4" /> REPORT
-                    </button>
+                  <div className="text-xs text-[#166534] p-2 bg-[#DCFCE7] border border-[#86EFAC] font-bold">
+                    RESOLVED BY: <strong>{activeNodeAlert.acknowledgedBy}</strong>
                   </div>
                 )}
-
-                {canDispatch && activeNodeAlert.status !== "resolved" && (
-                  <div className="border border-[#CBDCEB] bg-[#F0F6FC] p-2.5">
-                    <div className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#475569]"><Radio className="h-3.5 w-3.5 text-[#0284C7]" /> GUARD DISPATCH</div>
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <select value={dispatchGuardId || activeNodeAlert.assignedGuardId || ""} onChange={(event) => setDispatchGuardId(event.target.value)} className="min-w-0 flex-1 border border-[#CBDCEB] bg-[#FFFFFF] px-2 py-2 text-[10px] font-bold text-[#0F172A]">
-                        <option value="">SELECT GUARD</option>
-                        {guards.map((guard) => <option key={guard.id} value={guard.id}>{guard.name} // {guard.currentSector || "UNASSIGNED"}</option>)}
-                      </select>
-                      <button type="button" onClick={() => void handleDispatch()} disabled={!dispatchGuardId && !activeNodeAlert.assignedGuardId || isDispatching} className="flex items-center justify-center gap-1.5 bg-[#D97706] px-3 py-2 text-[10px] font-bold uppercase text-white hover:bg-[#B45309] disabled:cursor-not-allowed disabled:opacity-40"><Send className="h-3.5 w-3.5" /> {isDispatching ? "SENDING" : "DISPATCH"}</button>
-                    </div>
-                    {dispatchError && <div className="mt-2 text-[10px] font-bold text-[#B91C1C]">{dispatchError}</div>}
-                  </div>
-                )}
-                {!canDispatch && <div className="text-[9px] uppercase text-[#64748B]">Command or administrator tier required for guard dispatch.</div>}
-
-                <button
-                  type="button"
-                  onClick={() => openIncidentReport(activeNodeAlert, linkedGuard)}
-                  className="flex w-full items-center justify-center gap-1.5 border border-[#CBDCEB] bg-[#F0F6FC] py-2 text-xs font-bold uppercase tracking-wider text-[#0369A1] hover:bg-[#E0F2FE]"
-                >
-                  <FileText className="h-3.5 w-3.5" /> PRINT / SAVE PDF REPORT
-                </button>
 
                 <button
                   onClick={() => setSelectedAlert(activeNodeAlert)}
@@ -338,7 +237,7 @@ export default function AlertsPage() {
                 >
                   <div className="flex items-start gap-4 min-w-0">
                     <div className="relative w-16 h-12 bg-[#0B1320] border border-[#CBDCEB] shrink-0 overflow-hidden">
-                      <img src={evidenceSource(alert.evidenceUrl)} alt="Still" className="w-full h-full object-cover" />
+                      <img src={alert.evidenceUrl} alt="Still" className="w-full h-full object-cover" />
                     </div>
 
                     <div className="min-w-0">
@@ -353,7 +252,6 @@ export default function AlertsPage() {
                       <p className="text-[11px] text-[#475569] font-sans truncate mt-0.5">
                         {alert.notes}
                       </p>
-                      {alert.assignedGuardName && <span className="mt-1 inline-flex items-center gap-1 text-[9px] font-bold uppercase text-[#D97706]"><Send className="h-3 w-3" /> DISPATCHED // {alert.assignedGuardName}</span>}
                     </div>
                   </div>
 
@@ -406,7 +304,7 @@ export default function AlertsPage() {
 
             <div className="relative aspect-video bg-[#0B1320] border border-[#CBDCEB] overflow-hidden">
               <img
-                src={evidenceSource(selectedAlert.evidenceUrl)}
+                src={selectedAlert.evidenceUrl}
                 alt="High-Res Evidence"
                 className="w-full h-full object-cover"
               />
@@ -421,11 +319,6 @@ export default function AlertsPage() {
             </div>
 
             <BlockchainEvidenceCard alert={selectedAlert} />
-
-            <div className="flex flex-wrap items-center justify-between gap-2 border border-[#CBDCEB] bg-[#F0F6FC] p-3 text-[10px]">
-              <div><span className="block uppercase text-[#64748B]">EVIDENCE SOURCE</span><strong className="uppercase text-[#0F172A]">{selectedAlert.evidenceSource || "Recorded alert"}</strong></div>
-              <button type="button" onClick={() => openIncidentReport(selectedAlert, linkedGuard)} className="flex items-center gap-1.5 border border-[#0284C7] bg-[#0284C7] px-3 py-1.5 font-bold uppercase text-white hover:bg-[#0369A1]"><FileText className="h-3.5 w-3.5" /> PRINT / SAVE PDF</button>
-            </div>
 
             {linkedGuard && (
               <div className="p-3 bg-[#F0F6FC] border border-[#CBDCEB] flex items-center justify-between">

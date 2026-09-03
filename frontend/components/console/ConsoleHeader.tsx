@@ -9,15 +9,12 @@ import {
   LogOut,
   AlertTriangle,
   ShieldCheck,
-  Moon,
-  Sun,
 } from "lucide-react";
 import { useIBVAPStore } from "@/lib/store/useIBVAPStore";
 import { formatTimeIST } from "@/lib/utils";
 import { tacticalSound } from "@/lib/sound";
 import { TacticalButton } from "../shared/TacticalButton";
 import { AuthSession, clearAuthSession, getAuthSession } from "@/lib/auth";
-import { applyTheme, getStoredTheme } from "@/lib/theme";
 
 export const ConsoleHeader: React.FC = () => {
   const {
@@ -35,7 +32,6 @@ export const ConsoleHeader: React.FC = () => {
   const [currentTime, setCurrentTime] = useState<string>("");
   const [utcTime, setUtcTime] = useState<string>("");
   const [authSession, setAuthSession] = useState<AuthSession | null>(null);
-  const [darkMode, setDarkMode] = useState(false);
   const totalQueued = offlineQueue.length + offlineLogQueue.length;
 
   useEffect(() => {
@@ -51,14 +47,7 @@ export const ConsoleHeader: React.FC = () => {
 
   useEffect(() => {
     setAuthSession(getAuthSession());
-    setDarkMode(getStoredTheme() === "dark");
   }, []);
-
-  const handleThemeToggle = () => {
-    const nextTheme = darkMode ? "light" : "dark";
-    applyTheme(nextTheme);
-    setDarkMode(nextTheme === "dark");
-  };
 
   const handleSignOut = () => {
     tacticalSound.playClick();
@@ -67,7 +56,7 @@ export const ConsoleHeader: React.FC = () => {
   };
 
   return (
-    <header className="min-h-14 h-auto bg-[#FFFFFF] border-b border-[#CBDCEB] px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 z-30 shrink-0 select-none font-mono shadow-sm">
+    <header className="h-14 bg-[#FFFFFF] border-b border-[#CBDCEB] px-4 flex items-center justify-between z-30 shrink-0 select-none font-mono shadow-sm">
       {/* Left: Terminal Node & Clock */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
@@ -105,12 +94,11 @@ export const ConsoleHeader: React.FC = () => {
         <Link href="/live-feed" className="hover:text-[#0284C7] transition-colors">LIVE_FEED</Link>
         <Link href="/alerts" className="hover:text-[#0284C7] transition-colors">EVIDENCE_VAULT</Link>
         <Link href="/map" className="hover:text-[#0284C7] transition-colors">RADAR_GIS</Link>
-        <Link href="/analytics" className="hover:text-[#0284C7] transition-colors">ANALYTICS</Link>
         <Link href="/guard-duty" className="hover:text-[#0284C7] transition-colors">ROSTER</Link>
       </nav>
 
       {/* Right Controls */}
-      <div className="ml-auto flex max-w-full flex-wrap items-center justify-end gap-2.5">
+      <div className="flex items-center gap-2.5">
         {authSession && (
           <div className="hidden lg:block border border-[#CBDCEB] bg-[#F0F6FC] px-2.5 py-1 text-[10px] uppercase">
             <span className="text-[#64748B]">{authSession.rank} // </span>
@@ -153,16 +141,6 @@ export const ConsoleHeader: React.FC = () => {
           title={soundMuted ? "Audio muted" : "Audio active"}
         >
           {soundMuted ? <VolumeX className="w-3.5 h-3.5" /> : <Volume2 className="w-3.5 h-3.5" />}
-        </button>
-
-        <button
-          type="button"
-          onClick={handleThemeToggle}
-          className="p-2 border rounded-none transition-colors bg-[#F0F6FC] hover:bg-[#E0F2FE] text-[#0369A1] border-[#CBDCEB]"
-          title={darkMode ? "Switch to light theme" : "Switch to dark theme"}
-          aria-label={darkMode ? "Switch to light theme" : "Switch to dark theme"}
-        >
-          {darkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
         </button>
 
         {/* Tactical Lockdown Trigger */}

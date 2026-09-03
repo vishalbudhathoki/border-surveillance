@@ -33,7 +33,6 @@ def empty_state() -> dict[str, Any]:
         "sectors": [],
         "pois": [],
         "anprRecords": [],
-        "watchlistEntries": [],
         "authUsers": [],
         "system": {"lockdownActive": False, "defconLevel": 2},
     }
@@ -56,13 +55,11 @@ class ApiRepository:
     def reset(self) -> dict[str, Any]:
         with self._lock:
             auth_users = deepcopy(self._state.get("authUsers", []))
-            watchlist_entries = deepcopy(self._state.get("watchlistEntries", []))
             self._state = empty_state()
             # Reset operational telemetry without deleting provisioned guard
-            # credentials or watchlists. Administrators should not lose access
-            # configuration by using the UI's cache reset action.
+            # credentials. Administrators should not lose accounts by using
+            # the UI's cache reset action.
             self._state["authUsers"] = auth_users
-            self._state["watchlistEntries"] = watchlist_entries
             self._persist()
             return deepcopy(self._state)
 
@@ -94,16 +91,6 @@ class ApiRepository:
                     self._persist()
                     return deepcopy(updated)
         return None
-
-    def delete(self, collection: str, item_id: str) -> bool:
-        with self._lock:
-            items = self._state.get(collection, [])
-            for index, item in enumerate(items):
-                if item.get("id") == item_id:
-                    del items[index]
-                    self._persist()
-                    return True
-        return False
 
     def add_activity(self, entry: dict[str, Any]) -> dict[str, Any]:
         activity = {
@@ -201,45 +188,6 @@ class ApiRepository:
             if changed:
                 self._persist()
 
-    def ensure_demo_watchlist(self) -> None:
-        """Backfill presentation-safe watchlist records for older local state."""
-        defaults = [
-            {
-                "id": "WATCH-PLATE-001",
-                "type": "plate",
-                "value": "DL01AB1234",
-                "label": "Blacklisted transport",
-                "reason": "Vehicle linked to a prior perimeter breach.",
-                "status": "Blacklisted",
-                "createdAt": _now(),
-            },
-            {
-                "id": "WATCH-PLATE-002",
-                "type": "plate",
-                "value": "WB06K7788",
-                "label": "Authorized logistics",
-                "reason": "Scheduled supply convoy.",
-                "status": "Authorized",
-                "createdAt": _now(),
-            },
-            {
-                "id": "WATCH-FACE-001",
-                "type": "face",
-                "value": "demo-subject-07",
-                "label": "Person of interest",
-                "reason": "Demonstration face watchlist record.",
-                "status": "Under Surveillance",
-                "createdAt": _now(),
-            },
-        ]
-        with self._lock:
-            entries = self._state.setdefault("watchlistEntries", [])
-            existing_ids = {str(item.get("id")) for item in entries}
-            missing = [item for item in defaults if item["id"] not in existing_ids]
-            if missing:
-                entries.extend(missing)
-                self._persist()
-
     def authenticate_user(self, operator_id: str, passcode: str) -> Optional[dict[str, Any]]:
         from django.contrib.auth.hashers import check_password
 
@@ -269,7 +217,6 @@ class ApiRepository:
         try:
             payload = json.loads(self.path.read_text(encoding="utf-8"))
             if isinstance(payload, dict) and payload.get("schemaVersion") == STATE_SCHEMA_VERSION:
-                payload.setdefault("watchlistEntries", [])
                 payload.setdefault("authUsers", [])
                 return payload
         except (OSError, ValueError, TypeError):

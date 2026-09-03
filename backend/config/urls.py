@@ -6,8 +6,6 @@ from app.api import views
 urlpatterns = [
     path("api/health", views.health),
     path("api/auth/login", views.auth_login),
-    path("api/watchlist", views.watchlist),
-    path("api/watchlist/<str:entry_id>", views.watchlist_detail),
     path("api/bootstrap", views.bootstrap),
     path("api/blockchain/status", views.blockchain_status),
     path("api/firebase/status", views.firebase_status_view),
@@ -15,7 +13,6 @@ urlpatterns = [
     path("api/guards", views.create_guard),
     path("api/alerts", views.alerts),
     path("api/alerts/<str:alert_id>/action", views.alert_action),
-    path("api/alerts/<str:alert_id>/dispatch", views.dispatch_alert),
     path("api/alerts/<str:alert_id>/anchor", views.anchor_alert),
     path("api/alerts/<str:alert_id>/verification", views.verify_alert),
     path("api/activity", views.activity),

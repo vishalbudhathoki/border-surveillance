@@ -8,7 +8,6 @@ import {
   MapPin,
   Users,
   Sliders,
-  BarChart3,
   ExternalLink,
   Shield,
 } from "lucide-react";
@@ -57,12 +56,6 @@ export const ConsoleSidebar: React.FC = () => {
       href: "/map",
       icon: MapPin,
       desc: "GIS & Sensor Radar",
-    },
-    {
-      name: "Operations Analytics",
-      href: "/analytics",
-      icon: BarChart3,
-      desc: "Readiness & Response",
     },
     {
       name: "Guard Duty & Log",

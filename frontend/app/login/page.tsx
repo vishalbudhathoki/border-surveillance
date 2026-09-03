@@ -1,14 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { AlertCircle, Key, Lock, Moon, Radio, Shield, Sun } from "lucide-react";
+import { AlertCircle, Key, Lock, Radio, Shield } from "lucide-react";
 import { TacticalButton } from "@/components/shared/TacticalButton";
 import { tacticalSound } from "@/lib/sound";
 import { authenticate, saveAuthSession } from "@/lib/auth";
 import { ApiError, backendApi } from "@/lib/api/client";
-import { applyTheme, getStoredTheme } from "@/lib/theme";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,17 +15,6 @@ export default function LoginPage() {
   const [passcode, setPasscode] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState("");
-  const [darkMode, setDarkMode] = useState(false);
-
-  useEffect(() => {
-    setDarkMode(getStoredTheme() === "dark");
-  }, []);
-
-  const handleThemeToggle = () => {
-    const nextTheme = darkMode ? "light" : "dark";
-    applyTheme(nextTheme);
-    setDarkMode(nextTheme === "dark");
-  };
 
   const handleLogin = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -60,15 +48,6 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-[#EBF3FA] flex flex-col items-center justify-center p-6 relative font-mono text-[#0F172A]">
-      <button
-        type="button"
-        onClick={handleThemeToggle}
-        className="absolute right-6 top-6 border border-[#CBDCEB] bg-[#FFFFFF] p-2 text-[#0369A1] hover:bg-[#E0F2FE]"
-        title={darkMode ? "Switch to light theme" : "Switch to dark theme"}
-        aria-label={darkMode ? "Switch to light theme" : "Switch to dark theme"}
-      >
-        {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-      </button>
       <div className="relative max-w-md w-full bg-[#FFFFFF] border border-[#CBDCEB] rounded-none p-8 z-10 shadow-xl">
         <div className="text-center pb-6 border-b border-[#CBDCEB]">
           <div className="w-10 h-10 bg-[#0284C7] text-white flex items-center justify-center mx-auto mb-4 font-bold shadow-sm">

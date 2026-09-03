@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { AlertCircle, CheckCircle2, Eye, KeyRound, ListChecks, Plus, Power, RotateCcw, ShieldCheck, Sliders, Trash2, UserPlus, Volume2, VolumeX } from "lucide-react";
+import { AlertCircle, CheckCircle2, KeyRound, Plus, Power, RotateCcw, ShieldCheck, Sliders, UserPlus, Volume2, VolumeX } from "lucide-react";
 import { useIBVAPStore } from "@/lib/store/useIBVAPStore";
-import { GuardStatus, WatchlistStatus, WatchlistType } from "@/lib/types";
+import { GuardStatus } from "@/lib/types";
 
 const INITIAL_GUARD_FORM = {
   name: "",
@@ -23,14 +23,6 @@ const INITIAL_GUARD_FORM = {
   emergencyContactRelation: "",
 };
 
-const INITIAL_WATCHLIST_FORM = {
-  type: "plate" as WatchlistType,
-  value: "",
-  label: "",
-  status: "Blacklisted" as WatchlistStatus,
-  reason: "",
-};
-
 const inputClass = "w-full border border-[#CBDCEB] bg-[#FFFFFF] px-3 py-2 text-xs text-[#0F172A] placeholder:text-[#94A3B8] outline-none focus:border-[#0284C7] font-mono";
 
 const accessTierForRank = (rank: string) => {
@@ -45,9 +37,6 @@ export default function CameraSettingsAdminPage() {
     cameras,
     guards,
     addGuard,
-    watchlistEntries,
-    addWatchlistEntry,
-    removeWatchlistEntry,
     toggleCameraActive,
     setCameraSensitivity,
     soundMuted,
@@ -59,10 +48,6 @@ export default function CameraSettingsAdminPage() {
   const [isSavingGuard, setIsSavingGuard] = useState(false);
   const [guardError, setGuardError] = useState("");
   const [guardSuccess, setGuardSuccess] = useState("");
-  const [watchlistForm, setWatchlistForm] = useState(INITIAL_WATCHLIST_FORM);
-  const [isSavingWatchlist, setIsSavingWatchlist] = useState(false);
-  const [watchlistError, setWatchlistError] = useState("");
-  const [watchlistSuccess, setWatchlistSuccess] = useState("");
 
   const updateGuardForm = (field: keyof typeof INITIAL_GUARD_FORM, value: string) => {
     setGuardForm((current) => ({ ...current, [field]: value }));
@@ -86,22 +71,6 @@ export default function CameraSettingsAdminPage() {
       setGuardError(error instanceof Error ? error.message : "Could not create guard record.");
     } finally {
       setIsSavingGuard(false);
-    }
-  };
-
-  const handleCreateWatchlistEntry = async (event: React.FormEvent) => {
-    event.preventDefault();
-    setIsSavingWatchlist(true);
-    setWatchlistError("");
-    setWatchlistSuccess("");
-    try {
-      const entry = await addWatchlistEntry(watchlistForm);
-      setWatchlistSuccess(`${entry.value} added // ${entry.status} watchlist rule active.`);
-      setWatchlistForm(INITIAL_WATCHLIST_FORM);
-    } catch (error) {
-      setWatchlistError(error instanceof Error ? error.message : "Could not create watchlist entry.");
-    } finally {
-      setIsSavingWatchlist(false);
     }
   };
 
@@ -284,83 +253,6 @@ export default function CameraSettingsAdminPage() {
                 <div className="mt-0.5 text-[#64748B]">{guard.badgeId} {guard.currentSector ? `// ${guard.currentSector}` : "// UNASSIGNED"}</div>
               </div>
               <span className="border border-[#BAE6FD] bg-[#E0F2FE] px-2 py-1 font-bold text-[#0369A1]">{accessTierForRank(guard.rank)}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Watchlist Management */}
-      <section className="border border-[#CBDCEB] bg-[#FFFFFF] p-5 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#CBDCEB] pb-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center bg-[#DC2626] text-white">
-              <ListChecks className="h-4 w-4" />
-            </div>
-            <div>
-              <h2 className="text-xs font-bold uppercase tracking-widest text-[#0F172A]">WATCHLIST CONTROL // ANPR & FACE INTELLIGENCE</h2>
-              <p className="mt-1 text-[11px] text-[#475569]">Create demo-safe plate or face watch rules. A matching plate from an active video source creates a logged incident.</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 border border-[#FCA5A5] bg-[#FEF2F2] px-2.5 py-1.5 text-[10px] font-bold uppercase text-[#991B1B]">
-            <Eye className="h-3.5 w-3.5" /> ADMIN ONLY
-          </div>
-        </div>
-
-        <form onSubmit={handleCreateWatchlistEntry} className="mt-5 space-y-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
-            <label className="space-y-1.5 text-[10px] font-bold uppercase tracking-wider text-[#475569]">
-              Record type *
-              <select required value={watchlistForm.type} onChange={(event) => setWatchlistForm((current) => ({ ...current, type: event.target.value as WatchlistType }))} className={inputClass}>
-                <option value="plate">License plate</option>
-                <option value="face">Face reference</option>
-              </select>
-            </label>
-            <label className="space-y-1.5 md:col-span-2 text-[10px] font-bold uppercase tracking-wider text-[#475569]">
-              Match value *
-              <input required value={watchlistForm.value} onChange={(event) => setWatchlistForm((current) => ({ ...current, value: event.target.value }))} placeholder={watchlistForm.type === "plate" ? "DL01AB1234" : "subject-reference-07"} className={inputClass} />
-            </label>
-            <label className="space-y-1.5 md:col-span-2 text-[10px] font-bold uppercase tracking-wider text-[#475569]">
-              Label *
-              <input required value={watchlistForm.label} onChange={(event) => setWatchlistForm((current) => ({ ...current, label: event.target.value }))} placeholder="Blacklisted transport" className={inputClass} />
-            </label>
-          </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <label className="space-y-1.5 text-[10px] font-bold uppercase tracking-wider text-[#475569]">
-              Match status
-              <select value={watchlistForm.status} onChange={(event) => setWatchlistForm((current) => ({ ...current, status: event.target.value as WatchlistStatus }))} className={inputClass}>
-                <option>Blacklisted</option>
-                <option>Suspicious</option>
-                <option>Authorized</option>
-                <option>Missing Person</option>
-                <option>Under Surveillance</option>
-              </select>
-            </label>
-            <label className="space-y-1.5 md:col-span-2 text-[10px] font-bold uppercase tracking-wider text-[#475569]">
-              Reason / operator note
-              <input value={watchlistForm.reason} onChange={(event) => setWatchlistForm((current) => ({ ...current, reason: event.target.value }))} placeholder="Why this record should be highlighted" className={inputClass} />
-            </label>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[#CBDCEB] pt-4">
-            <div className="text-[10px] text-[#64748B]">Plate values are normalized for matching. Face entries are ready for approved face-identity adapters.</div>
-            <button type="submit" disabled={isSavingWatchlist} className="inline-flex items-center gap-2 border border-[#DC2626] bg-[#DC2626] px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#B91C1C] disabled:cursor-wait disabled:opacity-60">
-              {isSavingWatchlist ? <KeyRound className="h-3.5 w-3.5 animate-pulse" /> : <Plus className="h-3.5 w-3.5" />}
-              {isSavingWatchlist ? "SAVING..." : "ADD WATCHLIST RULE"}
-            </button>
-          </div>
-          {watchlistError && <div className="flex items-center gap-2 border border-[#FCA5A5] bg-[#FEF2F2] px-3 py-2 text-[10px] font-bold text-[#B91C1C]"><AlertCircle className="h-3.5 w-3.5" /> {watchlistError}</div>}
-          {watchlistSuccess && <div className="flex items-center gap-2 border border-[#86EFAC] bg-[#F0FDF4] px-3 py-2 text-[10px] font-bold text-[#166534]"><CheckCircle2 className="h-3.5 w-3.5" /> {watchlistSuccess}</div>}
-        </form>
-
-        <div className="mt-5 grid grid-cols-1 gap-2 md:grid-cols-2">
-          {watchlistEntries.map((entry) => (
-            <div key={entry.id} className="flex items-center justify-between gap-3 border border-[#CBDCEB] bg-[#F8FBFE] px-3 py-2.5 text-[10px]">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 font-bold text-[#0F172A]"><span className="text-[#DC2626]">{entry.type.toUpperCase()}</span> {entry.value}</div>
-                <div className="mt-0.5 truncate text-[#64748B]">{entry.label} // {entry.status}</div>
-              </div>
-              <button type="button" onClick={() => void removeWatchlistEntry(entry.id)} className="shrink-0 border border-[#FCA5A5] bg-[#FEF2F2] p-2 text-[#B91C1C] hover:bg-[#FEE2E2]" title={`Delete ${entry.value}`} aria-label={`Delete ${entry.value}`}>
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
             </div>
           ))}
         </div>
