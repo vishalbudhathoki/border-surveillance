@@ -234,11 +234,6 @@ class ApiRepository:
         ]
         with self._lock:
             entries = self._state.setdefault("watchlistEntries", [])
-            # A non-empty list is operator-owned data. Only backfill the demo
-            # records for legacy/empty state so an administrator can delete a
-            # rule without it silently reappearing on the next bootstrap.
-            if entries:
-                return
             existing_ids = {str(item.get("id")) for item in entries}
             missing = [item for item in defaults if item["id"] not in existing_ids]
             if missing:
