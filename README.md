@@ -12,40 +12,7 @@ The checked-in setup files are `backend/requirements-ai.txt`, `backend/requireme
 
 ## macOS setup (zsh or bash)
 
-Install Homebrew from [brew.sh](https://brew.sh/) if it is not already installed, then install Python 3.12 and Node.js:
-
-```bash
-brew install python@3.12 node
-```
-
-Use Homebrew's Python 3.12 binary explicitly:
-
-```bash
-cd ~/dev/border-surveillance-main/backend
-PYTHON_BIN="$(brew --prefix python@3.12)/bin/python3.12"
-"$PYTHON_BIN" --version
-"$PYTHON_BIN" -m venv venv
-source venv/bin/activate
-python -m pip install --upgrade pip
-for requirements_file in requirements-*.txt; do
-  python -m pip install -r "$requirements_file"
-done
-cp .env.example .env
-python manage.py check
-python manage.py migrate
-python manage.py seed_demo
-python manage.py runserver 127.0.0.1:8000
-```
-
-In a new Terminal window, start the frontend:
-
-```bash
-cd ~/dev/border-surveillance-main/frontend
-cp .env.example .env.local
-npm ci
-npm run build
-npm run dev
-```
+Install Homebrew from [brew.sh](https://brew.sh/) if it is not already installed. Install Python 3.12 and Node.js, create the backend virtual environment with Homebrew's Python 3.12 binary, install the three backend requirement files, copy the backend environment template, and apply Django migrations plus the demo seed. Start Django from the `backend/` directory. In a separate Terminal window, copy the frontend environment template, install the locked npm dependencies, and start Next.js from `frontend/`.
 
 Open <http://localhost:3000>. The Django API is available at <http://127.0.0.1:8000/api/health>.
 
@@ -53,55 +20,13 @@ On Apple Silicon, `AI_DEVICE=cuda` or `AI_DEVICE=auto` resolves to CUDA when ava
 
 ## Windows setup (PowerShell)
 
-Install Python from [python.org](https://www.python.org/downloads/) or with [WinGet](https://learn.microsoft.com/en-us/windows/package-manager/winget/), and install Node.js with:
+Install Python from [python.org](https://www.python.org/downloads/) or with [WinGet](https://learn.microsoft.com/en-us/windows/package-manager/winget/), and install the current Node.js LTS release. Keep the project under a plain path such as `C:\dev\border-surveillance-main`. Create and activate a Python 3.12 virtual environment in `backend/`, install the three backend requirement files, copy the backend environment template, and apply Django migrations plus the demo seed. Start Django from the `backend/` directory. In a separate PowerShell window, copy the frontend environment template, install the locked npm dependencies, and start Next.js from `frontend/`.
 
-```powershell
-winget install OpenJS.NodeJS.LTS
-```
+Open <http://localhost:3000>. If PowerShell blocks virtual-environment activation, allow locally created scripts for your user and activate the environment again.
 
-Keep the project under a plain path such as `C:\dev\border-surveillance-main`, then run:
+## Verification
 
-```powershell
-cd C:\dev\border-surveillance-main\backend
-py -3.12 --version
-py -3.12 -m venv venv
-.\venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-Get-ChildItem requirements-*.txt | Sort-Object Name | ForEach-Object { python -m pip install -r $_.FullName }
-Copy-Item .env.example .env
-python manage.py check
-python manage.py migrate
-python manage.py seed_demo
-python manage.py runserver 127.0.0.1:8000
-```
-
-In a new PowerShell window, start the frontend:
-
-```powershell
-cd C:\dev\border-surveillance-main\frontend
-Copy-Item .env.example .env.local
-npm ci
-npm run build
-npm run dev
-```
-
-Open <http://localhost:3000>. If PowerShell blocks activation, run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once and activate again with `.\venv\Scripts\Activate.ps1`.
-
-## Verification commands
-
-From the repository root, the backend test suite can be run without pytest:
-
-```bash
-backend/venv/bin/python -m unittest discover -s backend/tests -t . -v
-```
-
-The equivalent PowerShell command is:
-
-```powershell
-backend\venv\Scripts\python.exe -m unittest discover -s backend\tests -t . -v
-```
-
-The production frontend check is `npm run build` from `frontend/`. It performs TypeScript checking, linting, and static page generation.
+The backend includes a no-network unittest suite for the API adapters, inference behavior, and evidence pipeline. The frontend production build performs TypeScript checking, linting, static page generation, and route validation. Run both checks before sharing a deployment or contribution.
 
 ## Local configuration
 
